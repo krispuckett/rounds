@@ -10,6 +10,7 @@ import { execFileSync } from "node:child_process";
 
 import { HOME, DATA, STORE, IMG, POSTS, PUSHES, PUBLISHED, CLAUDE, DESKTOP_SESSIONS, projects } from "./config.mjs";
 import { filePostTopics } from "./topics.mjs";
+import { readCodex, PREFIX as CODEX_PREFIX } from "./codex.mjs";
 export { DATA, STORE, IMG };
 const TRANSCRIPTS = path.join(CLAUDE, "projects");
 
@@ -597,6 +598,26 @@ export async function buildIndex({ log = () => {} } = {}) {
       if (!threads.has(threadId)) cliMeta.set(threadId, meta);
     }, (postId, session) => postThread.set(postId, own(session)), editsFor(threadId));
   }
+
+  // Codex sessions: their screens, changes and days, each under a thread of its own
+  const codex = new Map(); // thread id -> its thread, once it has made something
+  for (const s of await readCodex({ log })) {
+    const tid = CODEX_PREFIX + s.id;
+    if (P.isPrivate(s.title, s.cwd)) continue;
+    const t = { id: tid, title: s.title, cwd: s.cwd, archived: s.archived, at: s.at, recap: "", cli: true, codex: true };
+    if (Object.keys(s.days).length) days.set(tid, { ...s.days });
+    for (const send of s.sends) {
+      if (P.isPrivate(send.caption, send.shots.join(" "))) continue;
+      const shots = [];
+      for (const f of send.shots) { const m = keepImage(f); if (m && !shots.some((x) => x.hash === m.hash)) shots.push(m); }
+      if (!shots.length) continue;
+      sets.push({ id: sha(`${tid}:${send.id}`), thread: tid, project: P.of([s.title], s.cwd), at: send.at, caption: send.caption, shots });
+      codex.set(tid, t);
+    }
+    const before = edits.size;
+    for (const e of s.edits) editsFor(tid)({ id: e.id, path: e.path, at: e.at, ...changeOf(e.name, e.input, e.result) });
+    if (edits.size > before) codex.set(tid, t);
+  }
   repos.save();
 
   // Pages the tool hook caught as they were published (hooks/tool.mjs): one written by a script
@@ -622,6 +643,7 @@ export async function buildIndex({ log = () => {} } = {}) {
     if (P.isPrivate(title, m.cwd)) continue;
     threads.set(id, { id, title, cwd: m.cwd, archived: false, at: m.at, recap: "", cli: true });
   }
+  for (const [id, t] of codex) if (!threads.has(id)) threads.set(id, t);
   // A post that names its session, when no transcript here knows that session (work brought in
   // from elsewhere, the demo), brings the session's name with it.
   for (const p of readDir(POSTS)) {

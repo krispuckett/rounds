@@ -104,7 +104,7 @@ if (rest.includes("--demo")) {
   }
   const empty = path.join(demo, ".empty");
   fs.mkdirSync(path.join(empty, "projects"), { recursive: true });
-  for (const [k, v] of Object.entries({ HOME: demo, CLAUDE_HOME: empty, DESKTOP_SESSIONS: empty })) process.env[`ROUNDS_${k}`] = process.env[`WORKBENCH_${k}`] = v;
+  for (const [k, v] of Object.entries({ HOME: demo, CLAUDE_HOME: empty, CODEX_HOME: empty, DESKTOP_SESSIONS: empty })) process.env[`ROUNDS_${k}`] = process.env[`WORKBENCH_${k}`] = v;
 }
 
 // From npx, the canvas runs as a child of this process. The dock's Update fetches the new release

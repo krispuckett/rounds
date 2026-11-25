@@ -46,6 +46,11 @@ work, newest first.
 The files a session changed sit on a sheet beside its screens. Open one to read every change
 line by line, and to see which other sessions changed it too.
 
+If you use Codex too, its sessions show up beside Claude's, with no setup: the images it showed
+you or generated, the files it changed, and its sessions by name. Codex chats with no project
+sit together under Codex chats, and a Codex session's title opens it in Codex. Notes on Codex
+screens stay on the canvas; they don't reach the session.
+
 Claude Code deletes terminal sessions after 30 days by default. What they made stays on your
 canvas, and so does every page they published, even after its folder is cleared.
 
@@ -79,7 +84,8 @@ npx github:krispuckett/rounds uninstall
 
 ## Privacy
 
-Everything stays in `~/.rounds` on your Mac, and websites can't reach it. To sort older screens
+Everything stays in `~/.rounds` on your Mac, and websites can't reach it. Codex sessions are
+read from the Codex app's own files in `~/.codex`, which Rounds only reads and never changes. To sort older screens
 into topics, Rounds asks Claude Haiku through your own Claude Code, sending each one's caption, session
 name and file names. Once a day it asks GitHub whether there's a newer Rounds; nothing from your
 canvas goes with it, and `"updates": false` in the config turns it off.

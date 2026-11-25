@@ -44,7 +44,8 @@ export const thumb = (hash: string) => `/api/thumb/${hash}.jpg`;
 /** A kept screen, at a width the canvas can afford, or the original. */
 export const img = (s: Shot, w?: 240 | 480 | 960 | 1600) => `/api/img/${s.hash}.${s.ext}${w ? `@${w}.jpg` : ""}`;
 export const pageSrc = (hash: string) => `/api/page/${hash}`;
-export const threadLink = (id: string) => `claude://claude.ai/epitaxy/${id}`;
+// a Codex session opens in Codex; the rest in Claude
+export const threadLink = (id: string) => (id.startsWith("codex-") ? `codex://threads/${id.slice(6)}` : `claude://claude.ai/epitaxy/${id}`);
 
 export async function postComment(c: { page: string; hash: string; x: number; y: number; text: string; set?: string }): Promise<Comment> {
   const r = await fetch("/api/comments", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(c) });
