@@ -53,7 +53,12 @@ async function fetchRelease() {
       : await fetch(RELEASES, { headers: { accept: "application/vnd.github+json", "user-agent": "rounds" }, signal: AbortSignal.timeout(10e3) }).then((res) => (res.ok ? res.json() : null));
     const tag = r?.tag_name;
     if (!tag || r.draft || r.prerelease) return null;
-    return { version: tag.replace(/^v/, ""), tag, url: r.html_url || "", notes: r.body || "" };
+    // Pin to the tag's commit: a tag can be moved after this check, but a commit sha can't, so
+    // fetching that sha later guarantees npx brings exactly what was seen here.
+    const repo = /^https:\/\/api\.github\.com\/repos\/([^/]+\/[^/]+)\//.exec(RELEASES)?.[1];
+    const sha = repo && await fetch(`https://api.github.com/repos/${repo}/git/refs/tags/${tag}`, { headers: { accept: "application/vnd.github+json", "user-agent": "rounds" }, signal: AbortSignal.timeout(10e3) })
+      .then((res) => (res.ok ? res.json() : null)).then((ref) => ref?.object?.sha).catch(() => null);
+    return { version: tag.replace(/^v/, ""), tag, sha: sha || tag, url: r.html_url || "", notes: r.body || "" };
   } catch { return undefined; } // offline, or GitHub busy: ask again later
 }
 
@@ -65,7 +70,7 @@ export async function checkNow() {
   writeCache({
     ...c,
     checkedAt: at,
-    release: r && { version: r.version, tag: r.tag },
+    release: r && { version: r.version, tag: r.tag, sha: r.sha },
     // a release that didn't start here (bin/rounds.mjs went back from it) waits for the next one
     bad: bad && !(c.bad || []).includes(bad) ? [...(c.bad || []), bad] : c.bad || [],
     // a canvas that can update itself says so, for the hook's wording
@@ -124,7 +129,7 @@ export function runUpdate() {
     const env = { ...process.env };
     delete env.ROUNDS_CHILD;
     console.log(`[rounds] Updating to ${want.version}…`);
-    execFile("npx", ["-y", `${SOURCE}#${want.tag}`, "path"], { cwd: os.tmpdir(), env, timeout: 5 * 60e3, maxBuffer: 4 << 20 }, (err, out, errOut) => {
+    execFile("npx", ["-y", `${SOURCE}#${want.sha || want.tag}`, "path"], { cwd: os.tmpdir(), env, timeout: 5 * 60e3, maxBuffer: 4 << 20 }, (err, out, errOut) => {
       const root = String(out || "").trim().split("\n").pop()?.trim() || "";
       let version = "";
       try { version = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8")).version; } catch {}
