@@ -1,0 +1,85 @@
+{
+  "name": "rounds-desktop",
+  "version": "1.3.0",
+  "private": true,
+  "description": "Desktop shell for Rounds",
+  "author": "Kris Puckett and Rounds contributors",
+  "license": "MIT",
+  "type": "module",
+  "main": "main.mjs",
+  "scripts": {
+    "start": "electron .",
+    "demo": "electron . --demo",
+    "icon": "electron build-icon.mjs",
+    "pack": "npm run icon && electron-builder --dir --win",
+    "dist": "npm run icon && electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "45.5.0",
+    "electron-builder": "26.18.0"
+  },
+  "build": {
+    "appId": "com.rounds.desktop",
+    "productName": "Rounds",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "main.mjs",
+      "package.json"
+    ],
+    "extraResources": [
+      {
+        "from": "../server",
+        "to": "rounds/server"
+      },
+      {
+        "from": "../dist",
+        "to": "rounds/dist"
+      },
+      {
+        "from": "../bin",
+        "to": "rounds/bin"
+      },
+      {
+        "from": "../hooks",
+        "to": "rounds/hooks"
+      },
+      {
+        "from": "../skill",
+        "to": "rounds/skill"
+      },
+      {
+        "from": "../demo",
+        "to": "rounds/demo"
+      },
+      {
+        "from": "../package.json",
+        "to": "rounds/package.json"
+      },
+      {
+        "from": "../LICENSE",
+        "to": "rounds/LICENSE"
+      },
+      {
+        "from": "../public/apple-touch-icon.png",
+        "to": "rounds/icon.png"
+      },
+      {
+        "from": "../node_modules/playwright-core",
+        "to": "rounds/node_modules/playwright-core"
+      }
+    ],
+    "win": {
+      "target": "nsis",
+      "icon": "generated/icon.png"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
