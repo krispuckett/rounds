@@ -7,7 +7,7 @@
 // Claude Code session outside the desktop app has no record here, so it never shows as waiting.
 import fs from "node:fs";
 import path from "node:path";
-import { CLAUDE, DESKTOP_SESSIONS, projects } from "./config.mjs";
+import { CLAUDE_HOMES, DESKTOP_SESSIONS, projects } from "./config.mjs";
 
 const TAIL = 4 << 20; // a turn's end is in the last few megabytes of its transcript
 
@@ -65,7 +65,7 @@ function lastTurn(file) {
 export function waiting({ since = Date.now() - 14 * 864e5 } = {}) {
   const P = projects();
   const transcripts = new Map();
-  for (const f of files(path.join(CLAUDE, "projects"), (n) => n.endsWith(".jsonl"))) {
+  for (const f of new Set(CLAUDE_HOMES.flatMap(home=>files(path.join(home,"projects"),(n)=>n.endsWith(".jsonl"))))) {
     if (f.includes(`${path.sep}subagents${path.sep}`)) continue;
     transcripts.set(path.basename(f, ".jsonl"), f);
   }

@@ -10,9 +10,10 @@ import { execFile } from "node:child_process";
 import { buildIndex, keepImage, hasSips, which, DATA, STORE, IMG } from "./indexer.mjs";
 import { pastPushes, importPushes } from "./history.mjs";
 import { applyMoves, fileTopics, filePostTopics, loadTopics } from "./topics.mjs";
-import { POSTS, projects, loadConfig } from "./config.mjs";
+import { POSTS, projects, loadConfig, MANAGED_SOURCES } from "./config.mjs";
 import { watchReleases, versionState, runUpdate, handOver } from "./updates.mjs";
 import { waiting } from "./waiting.mjs";
+import { windowsBrowser } from "./platform.mjs";
 
 const SHOTS = path.join(DATA, "shots");
 const SIZED = path.join(DATA, "sized");
@@ -48,6 +49,8 @@ function findBrowser() {
     for (const dir of ["/Applications", path.join(os.homedir(), "Applications")]) {
       for (const n of MAC_BROWSERS) { const f = path.join(dir, `${n}.app`, "Contents", "MacOS", n); if (runnable(f)) return f; }
     }
+  } else if (process.platform === "win32") {
+    const f = windowsBrowser({ runnable }); if (f) return f;
   } else {
     for (const n of PATH_BROWSERS) { const f = which(n); if (f) return f; }
   }
@@ -169,6 +172,8 @@ const readJSON = (f, d) => { try { return JSON.parse(fs.readFileSync(f, "utf8"))
 // The relay is opt-in ("relay": true in config); without it a desktop thread's note goes by the
 // hook like any other.
 const route = (t) => (!t ? "kept" : t.startsWith("local_") && loadConfig().relay ? "relay" : "hook");
+// a session that can't hear a note: gone from this Mac, or a Codex session (no hook reaches Codex)
+const deaf = (t) => !!(MANAGED_SOURCES || t?.gone || t?.codex);
 
 // Every note with where it goes, said plainly on its pin. A note pinned before the canvas knew
 // whose post it was finds its session once the tool hook has tied the post to it; the notes
@@ -186,7 +191,7 @@ function comments(idx) {
     c.route ||= route(c.thread);
     c.threadTitle ||= threads.get(c.thread)?.title || null;
     // a note still waiting when its session left this Mac will never be heard: it stays here
-    if (c.state === "queued" && threads.get(c.thread)?.gone) { c.state = "kept"; c.route = "kept"; }
+    if (c.state === "queued" && deaf(threads.get(c.thread))) { c.state = "kept"; c.route = "kept"; }
     if (c.state === "sent") continue;
     const s = readJSON(path.join(SENT, `${c.id}.json`), null);
     if (s) Object.assign(c, { state: "sent", delivery: s.delivery || "delivered" });
@@ -263,6 +268,7 @@ watchReleases();
 // New sends get filed under topics after each index, when the command-line Claude can be
 // reached; until then they show as their own sittings.
 function fileInBackground(idx) {
+  if(MANAGED_SOURCES)return; // no default-account model calls for a selected-source canvas
   filing ??= fileTopics(idx).catch((e) => console.log(`[rounds] topics: ${e.message}`)).finally(() => (filing = null));
 }
 
@@ -400,8 +406,8 @@ export async function handle(req, res, next) {
               const sh = set?.shots.find((s) => s.hash === c.hash);
               if (!set || !sh || !c.text?.trim()) return json(res, { error: "bad" }, 400);
               const thread = idx.threads.find((t) => t.id === set.thread);
-              // a session no longer on this Mac can't hear it: the note stays on the canvas
-              const to = thread?.gone ? null : set.thread;
+              // a session no longer on this Mac, or a Codex one, can't hear it: the note stays on the canvas
+              const to = deaf(thread) ? null : set.thread;
               const comment = {
                 id: crypto.randomUUID().slice(0, 8), page: c.page, hash: c.hash, x: c.x, y: c.y,
                 text: c.text.trim(), at: Date.now(), thread: set.thread || null, state: to ? "queued" : "kept",
@@ -424,7 +430,7 @@ export async function handle(req, res, next) {
             const page = idx.pages.find((x) => x.id === c.page);
             if (!page || !c.text?.trim()) return json(res, { error: "bad" }, 400);
             const thread = idx.threads.find((t) => t.id === page.thread);
-            const to = thread?.gone ? null : page.thread;
+            const to = deaf(thread) ? null : page.thread;
             const comment = {
               id: crypto.randomUUID().slice(0, 8),
               page: page.id,

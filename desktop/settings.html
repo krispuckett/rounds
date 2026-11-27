@@ -1,0 +1,8 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self';">
+<title>Rounds Settings</title><link rel="stylesheet" href="settings.css"></head>
+<body><main><header><div><h1>Settings</h1><p>Manage your local AI environments.</p></div><button id="refresh">Rescan</button></header>
+<nav aria-label="Settings sections"><button data-tab="integrations" aria-selected="true">Integrations</button><button data-tab="accounts" aria-selected="false">Accounts</button><button data-tab="general" aria-selected="false">General</button></nav>
+<section id="content" aria-live="polite"></section><footer><span id="status" role="status"></span><button id="save" disabled>Save preferences</button></footer>
+</main><script type="module" src="settings.js"></script></body></html>

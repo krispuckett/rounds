@@ -2,3 +2,5 @@ node_modules
 dist
 .audit
 *.tgz
+desktop/release/
+desktop/generated/

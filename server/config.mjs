@@ -15,11 +15,12 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { desktopSessionRoot } from "./platform.mjs";
 
-// Overrides are ROUNDS_HOME, ROUNDS_CLAUDE_HOME, ROUNDS_DESKTOP_SESSIONS, ROUNDS_PORT and
-// ROUNDS_BROWSER. The WORKBENCH_ names from before the name Rounds still work; both are set
+// Overrides are ROUNDS_HOME, ROUNDS_CLAUDE_HOME, ROUNDS_CODEX_HOME, ROUNDS_DESKTOP_SESSIONS,
+// ROUNDS_PORT and ROUNDS_BROWSER. The WORKBENCH_ names from before the name Rounds still work; both are set
 // alike here, so every part reads the same value.
-for (const k of ["HOME", "CLAUDE_HOME", "DESKTOP_SESSIONS", "PORT", "BROWSER"]) {
+for (const k of ["HOME", "CLAUDE_HOME", "CODEX_HOME", "DESKTOP_SESSIONS", "PORT", "BROWSER"]) {
   const v = process.env[`ROUNDS_${k}`] ?? process.env[`WORKBENCH_${k}`];
   if (v != null) process.env[`ROUNDS_${k}`] = process.env[`WORKBENCH_${k}`] = v;
 }
@@ -29,7 +30,12 @@ export const HOME = os.homedir();
 const at = (n) => path.join(HOME, n);
 export const DATA = process.env.ROUNDS_HOME || (!fs.existsSync(at(".rounds")) && fs.existsSync(at(".workbench")) ? at(".workbench") : at(".rounds"));
 export const CLAUDE = process.env.ROUNDS_CLAUDE_HOME || path.join(HOME, ".claude");
-export const DESKTOP_SESSIONS = process.env.ROUNDS_DESKTOP_SESSIONS || path.join(HOME, "Library/Application Support/Claude/claude-code-sessions");
+export const CODEX = process.env.ROUNDS_CODEX_HOME || path.join(HOME, ".codex");
+export const DESKTOP_SESSIONS = process.env.ROUNDS_DESKTOP_SESSIONS || desktopSessionRoot();
+function sourceList(key,fallback){if(process.env[key]===undefined)return [fallback];try{const a=JSON.parse(process.env[key]);return Array.isArray(a)?[...new Set(a.filter(x=>typeof x==="string"&&path.isAbsolute(x)))]:[];}catch{return [];}}
+export const CLAUDE_HOMES=sourceList("ROUNDS_CLAUDE_HOMES",CLAUDE);
+export const CODEX_HOMES=sourceList("ROUNDS_CODEX_HOMES",CODEX);
+export const MANAGED_SOURCES=process.env.ROUNDS_MANAGED_SOURCES==="1";
 export const STORE = path.join(DATA, "store");
 export const IMG = path.join(STORE, "img");
 export const POSTS = path.join(DATA, "posts");
@@ -72,6 +78,8 @@ export function projects(cfg = loadConfig()) {
       const t = [...texts, cwd].filter(Boolean).join(" ");
       for (const r of rules) if (r.re.test(t)) return r.key;
       if (!cfg.folders || !cwd || path.resolve(cwd) === HOME) return "studio";
+      // a Codex chat with no project runs in a folder Codex names for it (~/Documents/Codex/<day>/<words>)
+      if (/\/Documents\/Codex\/\d{4}-\d{2}-\d{2}(\/|$)/i.test(cwd.replace(/\\/g,"/"))) { names.set("codex-chats", "Codex chats"); return "codex-chats"; }
       let repo = repoCache.get(cwd);
       if (!repo) { repo = repoOf(cwd); repoCache.set(cwd, repo); }
       if (path.resolve(repo) === HOME) return "studio";
