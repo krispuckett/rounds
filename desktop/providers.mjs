@@ -7,7 +7,7 @@ import crypto from "node:crypto";
 
 export const PROVIDERS = Object.freeze([
   { id: "claude", name: "Claude", company: "Anthropic", cli: ["claude"], aliases: ["Claude Desktop", "Claude Code", "Cowork"], branding: "https://www.anthropic.com/", sessionAdapter: "claude" },
-  { id: "codex", name: "ChatGPT / Codex", company: "OpenAI", cli: ["codex"], aliases: ["Codex Desktop", "Codex CLI"], branding: "https://openai.com/brand/", sessionAdapter: null },
+  { id: "codex", name: "ChatGPT / Codex", company: "OpenAI", cli: ["codex"], aliases: ["Codex Desktop", "Codex CLI"], branding: "https://openai.com/brand/", sessionAdapter: "codex" },
   { id: "antigravity", name: "Google Antigravity", company: "Google", cli: ["antigravity", "agy", "gemini"], aliases: ["Antigravity IDE", "Gemini CLI"], branding: "https://www.antigravity.google/press", sessionAdapter: null },
   { id: "grok", name: "Grok", company: "xAI", cli: ["grok"], aliases: ["Grok CLI"], branding: "https://x.ai/", sessionAdapter: null },
   { id: "devin", name: "Devin", company: "Cognition", cli: ["devin", "windsurf"], aliases: ["Devin Desktop", "Windsurf"], branding: "https://devin.ai/", sessionAdapter: null },

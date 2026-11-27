@@ -20,7 +20,7 @@ const port = await new Promise((resolve, reject) => {
   s.listen(0, "127.0.0.1", () => { const p = s.address().port; s.close(() => resolve(p)); });
 });
 const cleanEnv = Object.fromEntries(Object.entries(process.env).filter(([key]) => !/^path$/i.test(key)));
-const env = { ...cleanEnv, PATH: "", ROUNDS_HOME: data, ROUNDS_CLAUDE_HOME: empty, ROUNDS_DESKTOP_SESSIONS: empty, ROUNDS_PORT: String(port), ROUNDS_BROWSER: "none" };
+const env = { ...cleanEnv, PATH: "", ROUNDS_HOME: data, ROUNDS_CLAUDE_HOME: empty, ROUNDS_CODEX_HOME: empty, ROUNDS_DESKTOP_SESSIONS: empty, ROUNDS_CLAUDE_HOMES: "[]", ROUNDS_CODEX_HOMES: "[]", ROUNDS_PORT: String(port), ROUNDS_BROWSER: "none" };
 const bind = spawnSync(process.execPath, ["--input-type=module", "-e", `import { serve } from "./server/serve.mjs"; const s = await serve(0); const address = s.address().address; await new Promise(r => s.close(r)); if (address !== "127.0.0.1") throw new Error("Unexpected bind address: " + address); process.exit(0);`], { cwd: root, env, encoding: "utf8", timeout: 10000, windowsHide: true });
 assert.equal(bind.status, 0, bind.stderr || String(bind.error || ""));
 const child = spawn(process.execPath, [path.join(root, "bin", "rounds.mjs"), "--no-open"], { cwd: root, env, stdio: ["ignore", "pipe", "pipe"], windowsHide: true });

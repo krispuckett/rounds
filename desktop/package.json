@@ -27,7 +27,9 @@
     "files": [
       "main.mjs",
       "providers.mjs",
+      "managed-sources.mjs",
       "account-info.mjs",
+      "account-groups.mjs",
       "claude-statusline.mjs",
       "settings-preload.cjs",
       "settings.html",

@@ -1,6 +1,7 @@
 import { app, BrowserWindow, Menu, Tray, dialog, nativeImage, session, ipcMain } from "electron";
 import { discoverProviders, loadPreferences, savePreferences } from "./providers.mjs";
 import { identify, usage } from "./account-info.mjs";
+import { selectedSources, sourceKey, prepareManagedSources } from "./managed-sources.mjs";
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
@@ -25,7 +26,7 @@ function readSettings() {
   try { return { login: false, watchAgents: false, tray: true, ...JSON.parse(fs.readFileSync(settingsFile(), "utf8")) }; }
   catch { return { login: false, watchAgents: false, tray: true }; }
 }
-let settings;
+let settings, activeSourceKey;
 function saveSettings(patch) {
   settings = { ...settings, ...patch };
   fs.mkdirSync(path.dirname(settingsFile()), { recursive: true });
@@ -63,7 +64,8 @@ function installSettingsIPC(){
   const trusted=(event)=>{if(!settingsWindow||event.sender!==settingsWindow.webContents||event.senderFrame!==settingsWindow.webContents.mainFrame||event.senderFrame.url!==pathToFileURL(path.join(here,"settings.html")).href)throw new Error("Settings request rejected.");};
   const profile=async(id)=>{for(const p of await scanProviders({includeDesktop:false})){const a=p.profiles.find(x=>x.id===id);if(a)return {a,p};}throw new Error("Profile is no longer available.");};
   ipcMain.handle("settings:scan",async event=>{trusted(event);return {providers:await scanProviders(),desktop:generalSettings()};});
-  ipcMain.handle("settings:save",async(event,patch)=>{trusted(event);return savePreferences(preferencesFile(),patch);});
+  ipcMain.handle("settings:save",async(event,patch)=>{trusted(event);const prefs=savePreferences(preferencesFile(),patch);const current=sourceKey(selectedSources(await scanProviders({includeDesktop:false})));return {saved:true,restartRequired:!demo&&current!==activeSourceKey};});
+  ipcMain.handle("settings:restart",event=>{trusted(event);if(demo)return false;setTimeout(()=>{app.relaunch({args:process.argv.slice(1).filter(a=>!["--background","--settings"].includes(a))});quitting=true;app.quit();},150);return true;});
   ipcMain.handle("settings:identity",async(event,id)=>{trusted(event);if(demo)return {error:"Unavailable in demo mode."};const {a,p}=await profile(id);return identify(a,p.cliPaths);});
   ipcMain.handle("settings:usage",async(event,id)=>{trusted(event);if(demo)return {error:"Unavailable in demo mode."};const {a,p}=await profile(id);return usage(a,p.cliPaths);});
   ipcMain.handle("settings:general",(event,patch)=>{trusted(event);for(const [key,value] of Object.entries(patch||{})){if(typeof value!=="boolean")throw new Error("Invalid preference.");if(key==="login"){if(!app.isPackaged||demo)throw new Error("Startup is available in the installed app.");setLogin(value);}else if(key==="watchAgents"){if(process.platform!=="win32"||demo)throw new Error("Desktop detection is unavailable here.");saveSettings({watchAgents:value});}else if(key==="tray")saveSettings({tray:value});else throw new Error("Invalid preference.");}refreshMenus();return generalSettings();});
@@ -111,10 +113,11 @@ async function start() {
     if(smoke){fs.mkdirSync(path.join(temporary,".claude","projects"),{recursive:true});fs.mkdirSync(path.join(temporary,".codex","sessions"),{recursive:true});}
     const f = path.join(data, "config.json");
     fs.writeFileSync(f, JSON.stringify({ ...JSON.parse(fs.readFileSync(f, "utf8")), updates: false, relay: false }));
-    Object.assign(process.env, { ROUNDS_HOME: data, ROUNDS_CLAUDE_HOME: empty, ROUNDS_DESKTOP_SESSIONS: empty, ROUNDS_BROWSER: "none" });
+    Object.assign(process.env, { ROUNDS_HOME: data, ROUNDS_CLAUDE_HOME: empty, ROUNDS_CODEX_HOME: empty, ROUNDS_DESKTOP_SESSIONS: empty, ROUNDS_CLAUDE_HOMES: "[]", ROUNDS_CODEX_HOMES: "[]", ROUNDS_BROWSER: "none" });
     // No demo topic processing can call the real Claude executable.
     for (const k of Object.keys(process.env)) if (/^path$/i.test(k)) delete process.env[k];
   }
+  if(!demo){const sources=selectedSources(await scanProviders({includeDesktop:false}));activeSourceKey=sourceKey(sources);prepareManagedSources(app.getPath("userData"),sources);}
   const port = await freePort();
   process.env.ROUNDS_PORT = process.env.WORKBENCH_PORT = String(port);
   origin = "http://127.0.0.1:" + port;
@@ -139,6 +142,17 @@ async function start() {
     const result = await fetch(origin + "/api/index").then(r => r.json());
     if (!result.sets?.length) throw new Error("Demo data did not load");
     console.log("PASS: Electron renderer, isolated demo API, " + result.sets.length + " sets");
+    const fixture=path.join(temporary,"sqlite-fixture");fs.mkdirSync(fixture,{recursive:true});
+    const {DatabaseSync}=await import("node:sqlite");
+    const state=new DatabaseSync(path.join(fixture,"state_5.sqlite")),history=new DatabaseSync(path.join(fixture,"thread_history_1.sqlite"));
+    state.exec("create table threads(id,name,title,cwd,archived,created_at_ms,updated_at_ms,source,thread_source)");
+    state.prepare("insert into threads values(?,?,?,?,?,?,?,?,?)").run("fixture","Fixture","Fixture",fixture,0,1700000000000,1700000001000,"cli","user");
+    history.exec("create table thread_items(thread_id,turn_id,item_type,completed_at_ms,created_at_ms,item_json,rollout_ordinal)");
+    history.prepare("insert into thread_items values(?,?,?,?,?,?,?)").run("fixture","t1","agentMessage",1700000001000,1700000000000,JSON.stringify({id:"i1",text:"![fixture](screen.png)"}),1);
+    state.close();history.close();
+    const {readCodex}=await import(pathToFileURL(path.join(root,"server","codex.mjs")).href);
+    const fixtureRead=await readCodex({roots:[fixture],log:console.log});if(fixtureRead.length!==1||fixtureRead[0].sends[0].shots[0]!==path.join(fixture,"screen.png"))throw new Error("Packaged SQLite reader smoke failed");
+    console.log("PASS: Electron SQLite worker and Codex fixture");
     openSettings();
     await new Promise((resolve,reject)=>{if(!settingsWindow.webContents.isLoadingMainFrame())return resolve();settingsWindow.webContents.once("did-finish-load",resolve);settingsWindow.webContents.once("did-fail-load",()=>reject(new Error("Settings did not load")));});
     const check=await settingsWindow.webContents.executeJavaScript(`(async()=>{const data=await window.roundsSettings.scan();const p=data.providers.find(x=>x.id==="claude");if(!p||p.profiles.length!==1||data.providers.length!==8)throw Error("Unexpected discovery fixture");await window.roundsSettings.save({providers:{claude:true},profiles:{[p.profiles[0].id]:{label:"Fixture account",enabled:true}}});const again=await window.roundsSettings.scan();if(again.providers.find(x=>x.id==="claude").profiles[0].label!=="Fixture account")throw Error("Preference did not persist");for(let i=0;i<30;i++){if(document.querySelectorAll(".brand img").length===8&&[...document.querySelectorAll(".brand img")].every(x=>x.complete&&x.naturalWidth>0))return "8 bundled provider logos and settings persistence";await new Promise(r=>setTimeout(r,100));}throw Error("Provider logos did not load");})()`);
