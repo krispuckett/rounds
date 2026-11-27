@@ -51,8 +51,12 @@ canvas, and so does every page they published, even after its folder is cleared.
 
 ## Set it up
 
-You need a Mac, Node 20 or newer, and Claude Code. Rounds reads the sessions that run on your
-Mac; sessions in the cloud don't reach it.
+You need Node 20 or newer and Claude Code. Rounds reads sessions on your machine;
+sessions in the cloud don't reach it. On Windows, use the native Claude Code executable
+on PATH. Chrome, Edge, Brave or Chromium installed in the usual Windows locations
+can render page previews. The Claude Desktop session format and relay may vary across
+versions; use `ROUNDS_DESKTOP_SESSIONS` to point at a compatible session directory.
+Without macOS's `sips`, screenshots are served at their original size.
 
 ```bash
 npx github:krispuckett/rounds init
@@ -79,7 +83,7 @@ npx github:krispuckett/rounds uninstall
 
 ## Privacy
 
-Everything stays in `~/.rounds` on your Mac, and websites can't reach it. To sort older screens
+Everything stays in `~/.rounds` on your machine, and the server listens only on localhost. To sort older screens
 into topics, Rounds asks Claude Haiku through your own Claude Code, sending each one's caption, session
 name and file names. Once a day it asks GitHub whether there's a newer Rounds; nothing from your
 canvas goes with it, and `"updates": false` in the config turns it off.

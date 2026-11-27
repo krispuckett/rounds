@@ -16,14 +16,8 @@ const TRANSCRIPTS = path.join(CLAUDE, "projects");
 const sha = (s) => crypto.createHash("sha1").update(s).digest("hex").slice(0, 16);
 
 // A program on PATH, or null. Looked for by hand, so nothing is spawned to find out.
-export function which(name) {
-  for (const dir of (process.env.PATH || "").split(path.delimiter)) {
-    if (!dir) continue;
-    const f = path.join(dir, name);
-    try { fs.accessSync(f, fs.constants.X_OK); if (fs.statSync(f).isFile()) return f; } catch {}
-  }
-  return null;
-}
+import { which } from "./platform.mjs";
+export { which };
 // sips is macOS's own image tool. Elsewhere there is none, and nothing asks it.
 let sips;
 export const hasSips = () => (sips ??= !!which("sips"));

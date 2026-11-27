@@ -16,6 +16,8 @@ import readline from "node:readline/promises";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import crypto from "node:crypto";
+import { createRequire } from "node:module";
+import { which } from "../server/platform.mjs";
 
 const say = (s = "") => process.stdout.write(s + "\n");
 if (Number(process.versions.node.split(".")[0]) < 20) { say(`Rounds needs Node 20 or newer; this is ${process.version}.`); process.exit(1); }
@@ -156,7 +158,7 @@ async function start() {
   } catch {}
   const port = Number(process.env.ROUNDS_PORT || loadConfig().port || 4797);
   process.env.ROUNDS_PORT = process.env.WORKBENCH_PORT = String(port);
-  if (process.platform !== "darwin") say("Rounds is made for macOS. Elsewhere it runs, with screens shown at full size and no page previews unless Chrome is found.");
+  if (process.platform !== "darwin") say("Screens are shown at full size without sips; page previews require a Chromium browser.");
   if (!fs.existsSync(path.join(DATA, "index.json"))) {
     say(rest.includes("--demo") ? "Setting up the demo…" : "Reading your Claude sessions for the first time…");
     const { buildIndex } = await import("../server/indexer.mjs");
@@ -164,7 +166,10 @@ async function start() {
   }
   if (!fs.existsSync(path.join(ROOT, "dist", "index.html"))) {
     say("Building the canvas…");
-    execFileSync("npx", ["vite", "build", "--logLevel", "warn"], { cwd: ROOT, stdio: "inherit" });
+    let vite;
+    try { vite = path.join(path.dirname(createRequire(import.meta.url).resolve("vite/package.json")), "bin", "vite.js"); }
+    catch { throw new Error("The canvas build is missing and Vite is not installed. Run npm install --include=dev in the checkout, or reinstall Rounds."); }
+    execFileSync(process.execPath, [vite, "build", "--logLevel", "warn"], { cwd: ROOT, stdio: "inherit" });
   }
   const { serve } = await import("../server/serve.mjs");
   // just after an update, the old copy may still be letting go of the port
@@ -176,7 +181,12 @@ async function start() {
   }
   const url = `http://localhost:${port}`;
   say(`Rounds is open at ${url}`);
-  if (!rest.includes("--no-open")) spawn(process.platform === "darwin" ? "open" : "xdg-open", [url], { stdio: "ignore", detached: true }).unref();
+  if (!rest.includes("--no-open")) {
+    const [program, args] = process.platform === "win32" ? ["rundll32.exe", ["url.dll,FileProtocolHandler", url]] : [process.platform === "darwin" ? "open" : "xdg-open", [url]];
+    const child = spawn(program, args, { stdio: "ignore", detached: true, windowsHide: true });
+    child.on("error", () => say(`Could not open the browser automatically. Open ${url} manually.`));
+    child.unref();
+  }
 }
 
 // What init puts into Claude's settings, from any version of it (Workbench was its first name),
@@ -191,7 +201,7 @@ const ourHooks = (settings) => {
   }
   return n;
 };
-const claudeCli = (args) => { try { execFileSync("claude", args, { stdio: "ignore" }); return true; } catch { return false; } };
+const claudeCli = (args) => { try { execFileSync(which("claude") || "claude", args, { stdio: "ignore", windowsHide: true }); return true; } catch { return false; } };
 
 async function init() {
   const { DATA, CLAUDE, CONFIG } = await import("../server/config.mjs");
@@ -222,7 +232,7 @@ async function init() {
     else {
       for (const name of ["workbench", "rounds"]) claudeCli(["mcp", "remove", "--scope", "user", name]); // an older copy gives way
       if (claudeCli(mcpLine)) say("  Added.");
-      else say(`  Couldn't run claude. Add it yourself:\n  claude ${mcpLine.map(quote).join(" ")}`);
+      else say(`  Couldn't run claude.${process.platform === "win32" ? " Install the native Claude Code executable or add the MCP server manually." : " Add it yourself:"}\n  claude ${mcpLine.map(quote).join(" ")}`);
     }
   }
 
