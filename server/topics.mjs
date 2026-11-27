@@ -10,6 +10,8 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { spawn } from "node:child_process";
+import { fileURLToPath } from "node:url";
+import { which } from "./platform.mjs";
 import { DATA } from "./config.mjs";
 
 export const TOPICS = path.join(DATA, "topics.json");
@@ -35,10 +37,12 @@ function ask(prompt) {
   // The command-line Claude, run bare of his own settings (no hooks, so nothing lands in his
   // session capture) and without saving a session (so the indexer never sees it).
   return new Promise((resolve, reject) => {
-    const p = spawn("claude", [
+    const cli = which("claude");
+    if (!cli && process.platform === "win32") return reject(new Error("Native Claude Code executable not found on PATH; automatic topic sorting is unavailable."));
+    const p = spawn(cli || "claude", [
       "-p", "--setting-sources", "project", "--no-session-persistence", "--tools", "",
       "--model", "haiku", "--system-prompt", SYSTEM, "--output-format", "json",
-    ], { cwd: path.dirname(new URL(import.meta.url).pathname) });
+    ], { cwd: path.dirname(fileURLToPath(import.meta.url)), windowsHide: true });
     let out = "";
     p.stdout.on("data", (d) => (out += d));
     p.on("error", reject);

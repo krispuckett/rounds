@@ -13,6 +13,7 @@ import { applyMoves, fileTopics, filePostTopics, loadTopics } from "./topics.mjs
 import { POSTS, projects, loadConfig } from "./config.mjs";
 import { watchReleases, versionState, runUpdate, handOver } from "./updates.mjs";
 import { waiting } from "./waiting.mjs";
+import { windowsBrowser } from "./platform.mjs";
 
 const SHOTS = path.join(DATA, "shots");
 const SIZED = path.join(DATA, "sized");
@@ -48,6 +49,8 @@ function findBrowser() {
     for (const dir of ["/Applications", path.join(os.homedir(), "Applications")]) {
       for (const n of MAC_BROWSERS) { const f = path.join(dir, `${n}.app`, "Contents", "MacOS", n); if (runnable(f)) return f; }
     }
+  } else if (process.platform === "win32") {
+    const f = windowsBrowser({ runnable }); if (f) return f;
   } else {
     for (const n of PATH_BROWSERS) { const f = which(n); if (f) return f; }
   }

@@ -15,6 +15,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import os from "node:os";
+import { desktopSessionRoot } from "./platform.mjs";
 
 // Overrides are ROUNDS_HOME, ROUNDS_CLAUDE_HOME, ROUNDS_DESKTOP_SESSIONS, ROUNDS_PORT and
 // ROUNDS_BROWSER. The WORKBENCH_ names from before the name Rounds still work; both are set
@@ -29,7 +30,7 @@ export const HOME = os.homedir();
 const at = (n) => path.join(HOME, n);
 export const DATA = process.env.ROUNDS_HOME || (!fs.existsSync(at(".rounds")) && fs.existsSync(at(".workbench")) ? at(".workbench") : at(".rounds"));
 export const CLAUDE = process.env.ROUNDS_CLAUDE_HOME || path.join(HOME, ".claude");
-export const DESKTOP_SESSIONS = process.env.ROUNDS_DESKTOP_SESSIONS || path.join(HOME, "Library/Application Support/Claude/claude-code-sessions");
+export const DESKTOP_SESSIONS = process.env.ROUNDS_DESKTOP_SESSIONS || desktopSessionRoot();
 export const STORE = path.join(DATA, "store");
 export const IMG = path.join(STORE, "img");
 export const POSTS = path.join(DATA, "posts");
