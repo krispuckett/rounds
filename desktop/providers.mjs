@@ -49,7 +49,7 @@ function hasProfileEvidence(provider, dir) {
   if (provider === "codex") return file(path.join(dir, "auth.json")) || directory(path.join(dir, "sessions")) || file(path.join(dir, "config.toml"));
   return false;
 }
-export function discoverProviders({ home = os.homedir(), env = process.env, platform = process.platform, customRoots = {}, preferences = { providers: {}, profiles: {} } } = {}) {
+export function discoverProviders({ home = os.homedir(), env = process.env, platform = process.platform, customRoots = {}, desktopNames = [], preferences = { providers: {}, profiles: {} } } = {}) {
   return PROVIDERS.map(provider => {
     const cli = [...new Set(provider.cli.map(n => cliPath(n, env, platform)).filter(Boolean))];
     const profiles = new Map();
@@ -60,7 +60,9 @@ export function discoverProviders({ home = os.homedir(), env = process.env, plat
       const p = preferences.profiles?.[id] || {};
       profiles.set(id, { id, provider: provider.id, root: path.resolve(candidate), defaultLabel: path.basename(candidate), label: p.label || path.basename(candidate), enabled: p.enabled === true, identityStatus: "unverified", usageStatus: "unavailable" });
     }
-    return { ...provider, cliPaths: cli, detected: !!cli.length || !!profiles.size, enabled: preferences.providers?.[provider.id] === true, profiles: [...profiles.values()] };
+    const names = [provider.name, ...provider.aliases, ...({claude:["Claude"],codex:["Codex"],antigravity:["Antigravity"],devin:["Devin","Windsurf"],copilot:["GitHub Copilot"]}[provider.id]||[])].map(n=>n.toLowerCase());
+    const desktopDetected = desktopNames.some(n=>typeof n==="string"&&names.includes(n.toLowerCase().trim()));
+    return { ...provider, cliPaths: cli, desktopDetected, detected: desktopDetected || !!cli.length || !!profiles.size, enabled: preferences.providers?.[provider.id] === true, profiles: [...profiles.values()] };
   });
 }
 // Store stable user choices separately from discovery, preserving temporarily absent profiles.

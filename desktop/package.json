@@ -26,6 +26,15 @@
     },
     "files": [
       "main.mjs",
+      "providers.mjs",
+      "account-info.mjs",
+      "claude-statusline.mjs",
+      "settings-preload.cjs",
+      "settings.html",
+      "settings.css",
+      "settings.js",
+      "node_modules/@lobehub/icons-static-svg/icons/{claude-color,codex-color,antigravity-color,grok,devin-color,cursor,githubcopilot,kiro-color}.svg",
+      "node_modules/@lobehub/icons-static-svg/LICENSE*",
       "package.json"
     ],
     "extraResources": [
@@ -81,5 +90,8 @@
       "createDesktopShortcut": true,
       "createStartMenuShortcut": true
     }
+  },
+  "dependencies": {
+    "@lobehub/icons-static-svg": "1.106.0"
   }
 }
